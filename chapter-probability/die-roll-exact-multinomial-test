@@ -1,0 +1,109 @@
+% Anthony S. Deese, Ph.D.
+% May 2026
+% Die Roll Exact Multinomial Test Example
+
+% ASDc: Clear previous results.
+clear all
+clc
+
+% ASDc: Define array of observed outcomes, as well as their sum.
+% arrKD = [ 3 2 1 2 3 7 ]; % Tstat = 0.2970
+arrKD = [ 2 2 1 1 2 10 ]; % Tstat = 0.0082
+nRoll = sum(arrKD);
+
+% ASDc: Define null-hypothesized theta array
+arrThetaNull = [1/6 1/6 1/6 1/6 1/6 1/6];
+
+% ASDc: Calculate probability mass value associated with kD under condition
+% of null hypothesis.
+pDNull = calcMultiDiePMF(arrKD, arrThetaNull);
+
+% ASDc: Initialize size of matPMFResults, otherwise constantly resizing the
+% matrix will significantly slow down calculations.
+matPMFResults = zeros(nRoll, nRoll, nRoll, nRoll, nRoll, nRoll);
+
+% ASDc: Initialize test statistic Tstat to zero.
+Tstat = 0;
+
+% ASDc: Cycle through all potential values of arrK, using if/else
+% statements to isolate those at least as extreme as arrKD.
+for k1 = 1:nRoll+1
+    for k2 = 1:nRoll+1
+        for k3 = 1:nRoll+1            
+            for k4 = 1:nRoll+1
+                for k5 = 1:nRoll+1
+                    for k6 = 1:nRoll+1
+
+                        % ASDc: Display progress to user.
+                        if k2==1
+                            progressBar = [ k1 k2 k3 k4 k5 k6 ]
+                        end
+
+                        % ASDc: Define temporary arraK for current
+                        % iteration.
+                        % NOTE: That because we use k1 - k6 as matrix
+                        % indices, they cannot take on zero-value. However,
+                        % zero is a valid outcome of random variable-K. As
+                        % such, we must assume that the k1-k6 index values
+                        % represent the number of rolls observed PLUS ONE.
+                        tempArrK = [ k1-1 k2-1 k3-1 k4-1 k5-1 k6-1 ];
+                        
+                        % ASDc: Calculate PMF value correspdonding to
+                        % inputs tempArrK, under null-hypothesis condition,
+                        % using function-calcMultiDiePMF.
+                        tempPMFk = calcMultiDiePMF(tempArrK, arrThetaNull);
+
+                        % ASDc: Check that sum(tempArrK) = nRoll, otherwise
+                        % this case does not belong to set-K (and
+                        % definitely not set KExt).
+                        if sum(tempArrK)==nRoll
+
+                            % ASDc: Check that tempPMFk is less than pDNull,
+                            % if yes then current case belongs to kEst.
+                            if tempPMFk <= pDNull
+                                
+                                % ASDc: Add tempPMFk to Tstat value, that
+                                % was initialized to zero before loop
+                                % began.
+                                Tstat = Tstat + tempPMFk;
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+
+% ASDc: Define function that generates PMF value for Multinomial Die
+% Example, accepting outcome values contained within arrK as well as
+% parameter values contained within arrTheta.
+function pMF = calcMultiDiePMF(arrK, arrTheta)
+
+    % ASDc: Confirm input dimensions.
+    if length(arrK) ~= 6 || length(arrTheta) ~= 6
+        error('ERROR: Both arrK and arrTheta must contain exactly six values.');
+    end
+
+    % ASDc: Check that arrK contains valid count values.
+    if any(arrK < 0) || any(mod(arrK,1) ~= 0)
+        error('ERROR: All entries of arrK must be nonnegative integers.');
+    end
+
+    % ASDc: Check that arrTheta contains valid probabilities.
+    if any(arrTheta < 0) || any(arrTheta > 1)
+        error('ERROR: All entries of arrTheta must be between 0 and 1.');
+    end
+
+    % ASDc: Check that probabilities sum to one.
+    if abs(sum(arrTheta) - 1) > 1e-12
+        error('WARNING: The entries of arrTheta must sum to one.');
+    end
+
+    % ASDc: Calculate/sum total number of die rolls.
+    nRoll = sum(arrK);
+
+    % ASDc: Calculate PMF value as defined within text.
+    pMF = factorial(nRoll) / prod(factorial(arrK)) * prod(arrTheta .^ arrK);
+
+end
