@@ -1,0 +1,107 @@
+% =========================================================================
+% Author  : Anthony S. Deese, Ph.D.
+% Website : www.AnthonyDeese.com
+% YouTube : youtube.com/@professordeese
+% Instagram : @ProfessorDeese
+% -------------------------------------------------------------------------
+% Copyright (c) 2026 Anthony S. Deese
+% Licensed under the MIT License. You may reuse, modify, and
+% distribute this file provided the above copyright notice and this
+% permission notice appear in all copies. See the LICENSE file in the
+% repository root for the full text. Provided "as is", without warranty.
+% =========================================================================
+
+clear all
+clc
+
+% ASDc: Define training data; each column of xD is one sample's two features (x1;x2).
+xD = [ +1 -1 +2 -2 +1 -1 0 0 +2 +1 ; +1 +1 +1 -1 -1 -2 +2 -2 +1 +1 ];
+
+% ASDc: Define binary labels (0/1), one per column of xD.
+yD = [ +1 +1 +1 0 0 0 +1 0 +1 +1 ];
+
+% ASDc: Define hypothesized theta1 values (index the ROWS of the 3x3 hypothesis grid).
+theta1Hyp = [ -1; 0; +1 ];
+
+% ASDc: Define hypothesized theta2 values (index the COLUMNS of the 3x3 hypothesis grid).
+theta2Hyp = [ +1; +2; +3 ];
+
+% ASDc: Prior mass p(H) for each of the 9 hypotheses.
+% NOTE: Rows = theta1, cols = theta2; orientation matches the text.
+pH = [ 0.2208 0.0493 0.0040 ; 0.3640 0.0812 0.0067 ; 0.2208 0.0493 0.0040 ];
+
+% ASDc: Define dataset likelihood p(D|H) per hypothesis; LH shares pH's 3x3 layout.
+% NOTE: Outer loops sweep the hypothesis grid (k1 -> theta1, k2 -> theta2)...
+for k1 = 1:3
+    for k2 = 1:3
+      
+        % NOTE: Inner loop sweeps the 10 training samples (k3).
+        for k3 = 1:10
+            
+            % ASDc: Define neuron's predicted P(y=1) output for this sample under this hypothesis.
+            yPred = funActivation(theta1Hyp(k1), theta2Hyp(k2), xD(1,k3), xD(2,k3));
+            
+            % ASDc: Define PMF of the observed label: yPred if y=1, (1-yPred) if y=0.
+            PMF = (yPred^yD(k3))*((1-yPred)^(1-yD(k3)));
+            
+            % ASDc: Seed the running product with the first sample's PMF...
+            if k3 == 1
+                LH(k1,k2) = PMF;
+            
+            % ASDc: ...then multiply in each later sample (independence => product of PMFs).
+            else
+                LH(k1,k2) = LH(k1,k2) * PMF;
+            end
+        end
+    end
+end
+LH = LH
+%     0.0043    0.0839    0.3521
+%     0.0763    0.3895    0.7064
+%     0.0616    0.2919    0.5981
+
+% ASDc: Calculate marginal likelihood of the evidence, p(D) = sum over hypotheses of p(D|H)*p(H).
+pD = 0; % NOTE: Accumulator, initialized to zero.
+for k1 = 1:3
+    for k2 = 1:3
+        
+        % ASDc: Add this hypothesis's likelihood-times-prior to the total.
+        pD = pD + LH(k1,k2)*pH(k1,k2);
+    end
+end
+
+pD = pD % = 0.1204;
+
+% ASDc: Calculate psterior mass per hypothesis via Bayes' rule: p(D|H)*p(H) / p(D).
+for k1 = 1:3
+    for k2 = 1:3
+        pHDPost(k1,k2) = LH(k1,k2)*pH(k1,k2)/pD;
+    end
+end
+
+pHDPost = pHDPost
+%     0.0039    0.1683    0.5296
+%     0.0312    0.2626    0.2891
+%     0.0041    0.0245    0.0242
+
+% ASDc: Evaluate the MAP hypothesis H(0,2) against the training set.
+% ASDc: Optimal thetas from the posterior above (theta1=0, theta2=2).
+optTheta1 = 0;
+optTheta2 = 2;
+for k3 = 1:10
+    % ASDc: Define absolute value of residual = observed label minus predicted P(y=1).
+    deltaY(k3) = abs(yD(k3) - funActivation(optTheta1, optTheta2, xD(1,k3), xD(2,k3)));
+end
+
+deltaY = deltaY
+%      0.1192    0.1192    0.1192   -0.1192   -0.1192   -0.0180    0.0180   -0.0180    0.1192    0.1192
+
+% ASDc: Summarize residuals.
+avgError = mean(deltaY) % = 0.0888
+maxError = max(deltaY)  % = 0.1192
+
+% ASDc: Logistic activation: weighted sum h = theta1*x1 + theta2*x2, then sigma(h).
+function yOUT = funActivation(thetaIN1, thetaIN2, xIN1, xIN2)
+    h = thetaIN1*xIN1 + thetaIN2*xIN2;
+    yOUT = 1/(1+exp(-h));
+end
